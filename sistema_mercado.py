@@ -15,9 +15,12 @@ activos = {
 datos = {}
 for nombre, ticker in activos.items():
     activo = yf.Ticker(ticker)
-    precio = activo.history(period="1d")["Close"].iloc[-1]
-    datos[nombre] = precio
-
+    historial = activo.history(period="1d")
+    if not historial.empty:
+        precio = historial["close"].iloc[-1]
+        datos[nombre] = precio
+    else:
+        print(f"No hay datos para {ticker}")
 # Agregar la fecha
 datos["fecha"] = datetime.now().strftime("%Y-%m-%d")
 
