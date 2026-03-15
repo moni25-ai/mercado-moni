@@ -17,7 +17,7 @@ for nombre, ticker in activos.items():
     activo = yf.Ticker(ticker)
     historial = activo.history(period="1d")
     if not historial.empty:
-        precio = historial["close"].iloc[-1]
+        precio = historial["Close"].iloc[-1]
         datos[nombre] = precio
     else:
         print(f"No hay datos para {ticker}")
