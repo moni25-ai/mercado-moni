@@ -21,6 +21,7 @@ for nombre, ticker in activos.items():
         datos[nombre] = precio
     else:
         print(f"No hay datos para {ticker}")
+        datos[nombre] = None
 # Agregar la fecha
 datos["fecha"] = datetime.now().strftime("%Y-%m-%d")
 
