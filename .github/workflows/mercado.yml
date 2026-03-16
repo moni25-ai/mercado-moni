@@ -29,8 +29,7 @@ jobs:
           PG_DB: ${{ secrets.PG_DB }}
           PG_USER: ${{ secrets.PG_USER }}
           PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
-          PG_PORT: ${{ secrets.PG_PORT}}
-          
-          PG_PORT: $ {{ secrets.PG_PORT }}
+          PG_PORT: ${{ secrets.PG_PORT }}    
+        
           
         run: python sistema_mercado.py
