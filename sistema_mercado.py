@@ -38,7 +38,7 @@ PG_HOST = os.getenv("PG_HOST")
 PG_DB = os.getenv("PG_DB")
 PG_USER = os.getenv("PG_USER")
 PG_PASSWORD = os.getenv("PG_PASSWORD")
-PG_PORT = os.getenv(5432)
+PG_PORT = os.getenv("PG_PORT", "5432")
 
 conn = psycopg2.connect(
     host=PG_HOST,
