@@ -1,4 +1,4 @@
-name: Ejecutar sistema mercado
+name: Actualizar mercado
 
 on:
   schedule:
@@ -10,18 +10,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Descargar repositorio
-        uses: actions/checkout@v4
+      - name: Clonar repositorio
+        uses: actions/checkout@v3
 
-      - name: Instalar Python
-        uses: actions/setup-python@v5
+      - name: Configurar Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
       - name: Instalar librerías
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install yfinance psycopg2-binary
 
-      - name: Ejecutar script
+      - name: Ejecutar script de mercado
+        env:
+          PG_HOST: ${{ secrets.PG_HOST }}
+          PG_DB: ${{ secrets.PG_DB }}
+          PG_USER: ${{ secrets.PG_USER }}
+          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+          PG_PORT: $ {{ secrets.PG_PORT }}
+          
         run: python sistema_mercado.py
