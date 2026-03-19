@@ -92,9 +92,15 @@ except Exception as e:
     datos["CCL"] = None
 
 # Fecha
-datos["fecha"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+from datetime import datetime
+from pytz import timezone
 
-# -----------------------------
+# Hora local de Argentina
+ahora = datetime.now(timezone('America/Argentina/Buenos_Aires'))
+
+# Generar fecha correcta: YYYY-MM-DD HH:MM:SS
+datos["fecha"] = ahora.strftime("%Y-%m-%d %H:%M:%S")
+
 # Conexión a PostgreSQL
 # -----------------------------
 conn = psycopg2.connect(
