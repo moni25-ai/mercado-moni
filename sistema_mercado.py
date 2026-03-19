@@ -3,7 +3,9 @@ import psycopg2
 from datetime import datetime
 import os
 
+# Limpiar consola al iniciar
 # -----------------------------
+os.system('cls' if os.name == 'nt' else 'clear')# -----------------------------
 # Activos que vamos a observar
 # -----------------------------
 activos = {
