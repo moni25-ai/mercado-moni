@@ -71,13 +71,19 @@ for nombre, ticker in activos.items():
         print(f"No hay datos para {ticker}")
 
 # -----------------------------
-# Calcular CCL (robusto)
+# Calcular CCL (más seguro)
 # -----------------------------
 try:
-    precio_pesos = yf.Ticker("AL30.BA").history(period="5d")["Close"].dropna().iloc[-1]
-    precio_usd = yf.Ticker("AL30").history(period="5d")["Close"].dropna().iloc[-1]
+    hist_pesos = yf.Ticker("AL30.BA").history(period="5d")
+    hist_usd = yf.Ticker("AL30").history(period="5d")
 
-    datos["CCL"] = float(precio_pesos) / float(precio_usd)
+    if not hist_pesos.empty and not hist_usd.empty:
+        precio_pesos = hist_pesos["Close"].dropna().iloc[-1]
+        precio_usd = hist_usd["Close"].dropna().iloc[-1]
+
+        datos["CCL"] = float(precio_pesos) / float(precio_usd)
+    else:
+        datos["CCL"] = None
 
 except Exception as e:
     print("Error CCL:", e)
