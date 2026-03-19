@@ -72,6 +72,15 @@ for nombre, ticker in activos.items():
     else:
         print(f"No hay datos para {ticker}")
 
+# CCL simple
+try:
+    precio_pesos = yf.Ticker("AL30.BA").history(period="1d")["Close"].iloc[-1]
+    precio_usd = yf.Ticker("AL30").history(period="1d")["Close"].iloc[-1]
+
+    datos["CCL"] = float(precio_pesos) / float(precio_usd)
+
+except:
+    datos["CCL"] = None
 # Fecha
 datos["fecha"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
