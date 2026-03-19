@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS datos_mercado (
 # -----------------------------
 cursor.execute("""
 INSERT INTO datos_mercado (
-    fecha, SP500, VIX, ORO, PETROLEO, BONO_10Y,
+    fecha, SP500, VIX, ORO, PETROLEO, BONO_10Y, CCL
     USDARS_open, USDARS_high, USDARS_low, USDARS_close, USDARS_adj, USDARS_volume,
     USDARS_SMA5, USDARS_SMA10, USDARS_SMA20, USDARS_RSI14, USDARS_MACD, USDARS_MACD_signal
 )
@@ -142,6 +142,7 @@ DO UPDATE SET
     ORO = EXCLUDED.ORO,
     PETROLEO = EXCLUDED.PETROLEO,
     BONO_10Y = EXCLUDED.BONO_10Y,
+    CCL = EXCLUIDED.CCL,
 
     USDARS_open = EXCLUDED.USDARS_open,
     USDARS_high = EXCLUDED.USDARS_high,
@@ -163,6 +164,7 @@ DO UPDATE SET
     datos.get("ORO"),
     datos.get("PETROLEO"),
     datos.get("BONO_10Y"),
+    datos.get("CCL"),
 
     datos.get("USDARS_open"),
     datos.get("USDARS_high"),
