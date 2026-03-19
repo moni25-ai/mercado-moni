@@ -23,7 +23,6 @@ datos = {}
 for nombre, ticker in activos.items():
     activo = yf.Ticker(ticker)
 
-    # Para USDARS traemos más datos
     if nombre == "USDARS":
         historial = activo.history(period="30d")
     else:
@@ -33,7 +32,6 @@ for nombre, ticker in activos.items():
         fila = historial.iloc[-1]
 
         if nombre == "USDARS":
-            # Precios base
             datos["USDARS_open"] = float(fila["Open"])
             datos["USDARS_high"] = float(fila["High"])
             datos["USDARS_low"] = float(fila["Low"])
@@ -41,7 +39,7 @@ for nombre, ticker in activos.items():
             datos["USDARS_adj"] = float(fila["Adj Close"]) if "Adj Close" in fila else float(fila["Close"])
             datos["USDARS_volume"] = int(fila["Volume"])
 
-            # Indicadores simples
+            # SMA
             historial["SMA5"] = historial["Close"].rolling(5).mean()
             historial["SMA10"] = historial["Close"].rolling(10).mean()
             historial["SMA20"] = historial["Close"].rolling(20).mean()
@@ -72,15 +70,19 @@ for nombre, ticker in activos.items():
     else:
         print(f"No hay datos para {ticker}")
 
-# CCL simple
+# -----------------------------
+# Calcular CCL (robusto)
+# -----------------------------
 try:
-    precio_pesos = yf.Ticker("AL30.BA").history(period="1d")["Close"].iloc[-1]
-    precio_usd = yf.Ticker("AL30").history(period="1d")["Close"].iloc[-1]
+    precio_pesos = yf.Ticker("AL30.BA").history(period="5d")["Close"].dropna().iloc[-1]
+    precio_usd = yf.Ticker("AL30").history(period="5d")["Close"].dropna().iloc[-1]
 
     datos["CCL"] = float(precio_pesos) / float(precio_usd)
 
-except:
+except Exception as e:
+    print("Error CCL:", e)
     datos["CCL"] = None
+
 # Fecha
 datos["fecha"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -108,6 +110,7 @@ CREATE TABLE IF NOT EXISTS datos_mercado (
     ORO NUMERIC,
     PETROLEO NUMERIC,
     BONO_10Y NUMERIC,
+    CCL NUMERIC,
 
     USDARS_open NUMERIC,
     USDARS_high NUMERIC,
@@ -130,11 +133,11 @@ CREATE TABLE IF NOT EXISTS datos_mercado (
 # -----------------------------
 cursor.execute("""
 INSERT INTO datos_mercado (
-    fecha, SP500, VIX, ORO, PETROLEO, BONO_10Y, CCL
+    fecha, SP500, VIX, ORO, PETROLEO, BONO_10Y, CCL,
     USDARS_open, USDARS_high, USDARS_low, USDARS_close, USDARS_adj, USDARS_volume,
     USDARS_SMA5, USDARS_SMA10, USDARS_SMA20, USDARS_RSI14, USDARS_MACD, USDARS_MACD_signal
 )
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 ON CONFLICT (fecha)
 DO UPDATE SET
     SP500 = EXCLUDED.SP500,
@@ -142,7 +145,7 @@ DO UPDATE SET
     ORO = EXCLUDED.ORO,
     PETROLEO = EXCLUDED.PETROLEO,
     BONO_10Y = EXCLUDED.BONO_10Y,
-    CCL = EXCLUIDED.CCL,
+    CCL = EXCLUDED.CCL,
 
     USDARS_open = EXCLUDED.USDARS_open,
     USDARS_high = EXCLUDED.USDARS_high,
