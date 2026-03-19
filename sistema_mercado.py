@@ -38,7 +38,7 @@ for nombre, ticker in activos.items():
             datos["USDARS_high"] = float(fila["High"])
             datos["USDARS_low"] = float(fila["Low"])
             datos["USDARS_close"] = float(fila["Close"])
-            datos["USDARS_adj"] = float(fila["Adj Close"])
+            datos["USDARS_adj"] = float(fila["Adj Close"]) if "Adj Close" in fila else float(fila["Close"])
             datos["USDARS_volume"] = int(fila["Volume"])
 
             # Indicadores simples
