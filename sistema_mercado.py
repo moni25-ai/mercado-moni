@@ -112,8 +112,15 @@ def obtener_ccl():
     print("Todas las fuentes fallaron:", fuentes)
     return None
 
-# Obtener CCL
-datos["CCL"] = obtener_ccl()
+# CCL robusto usando USDT (proxy)
+# -----------------------------
+try:
+    precio = yf.Ticker("USDT-ARS").history(period="1d")["Close"].iloc[-1]
+    datos["CCL"] = float(precio)
+    print("CCL desde USDT")
+except Exception as e:
+    print("Error obteniendo CCL:", e)
+    datos["CCL"] = None
 
 # -----------------------------
 # Fecha correcta
