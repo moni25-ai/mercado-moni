@@ -1,12 +1,13 @@
 import yfinance as yf
 import psycopg2
 from datetime import datetime
+from pytz import timezone
 import os
+import requests
+from bs4 import BeautifulSoup
 
-# Limpiar consola al iniciar
 # -----------------------------
-os.system('cls' if os.name == 'nt' else 'clear')# -----------------------------
-# Activos que vamos a observar
+# Activos
 # -----------------------------
 activos = {
     "SP500": "^GSPC",
@@ -41,7 +42,6 @@ for nombre, ticker in activos.items():
             datos["USDARS_adj"] = float(fila["Adj Close"]) if "Adj Close" in fila else float(fila["Close"])
             datos["USDARS_volume"] = int(fila["Volume"])
 
-            # SMA
             historial["SMA5"] = historial["Close"].rolling(5).mean()
             historial["SMA10"] = historial["Close"].rolling(10).mean()
             historial["SMA20"] = historial["Close"].rolling(20).mean()
@@ -50,7 +50,6 @@ for nombre, ticker in activos.items():
             datos["USDARS_SMA10"] = float(historial["SMA10"].iloc[-1])
             datos["USDARS_SMA20"] = float(historial["SMA20"].iloc[-1])
 
-            # RSI
             delta = historial["Close"].diff()
             gain = delta.clip(lower=0).rolling(14).mean()
             loss = (-delta.clip(upper=0)).rolling(14).mean()
@@ -58,7 +57,6 @@ for nombre, ticker in activos.items():
             historial["RSI14"] = 100 - (100 / (1 + rs))
             datos["USDARS_RSI14"] = float(historial["RSI14"].iloc[-1])
 
-            # MACD
             ema12 = historial["Close"].ewm(span=12, adjust=False).mean()
             ema26 = historial["Close"].ewm(span=26, adjust=False).mean()
             macd = ema12 - ema26
@@ -71,37 +69,60 @@ for nombre, ticker in activos.items():
             datos[nombre] = float(fila["Close"])
     else:
         print(f"No hay datos para {ticker}")
+        datos[nombre] = None
 
 # -----------------------------
-# Calcular CCL (más seguro)
+# FUNCION ROBUSTA CCL (fallback)
 # -----------------------------
-try:
-    hist_pesos = yf.Ticker("AL30.BA").history(period="5d")
-    hist_usd = yf.Ticker("AL30").history(period="5d")
+def obtener_ccl():
+    fuentes = []
 
-    if not hist_pesos.empty and not hist_usd.empty:
-        precio_pesos = hist_pesos["Close"].dropna().iloc[-1]
-        precio_usd = hist_usd["Close"].dropna().iloc[-1]
+    # Fuente 1 - dolarito
+    try:
+        url = "https://www.dolarito.ar/cotizacion/dolar/ccl"
+        r = requests.get(url, timeout=10)
+        soup = BeautifulSoup(r.text, "html.parser")
+        valor = soup.select_one("div.d-e-k div span").text
+        valor = float(valor.replace(".", "").replace(",", "."))
+        print("CCL desde dolarito")
+        return valor
+    except:
+        fuentes.append("dolarito")
 
-        datos["CCL"] = float(precio_pesos) / float(precio_usd)
-    else:
-        datos["CCL"] = None
+    # Fuente 2 - ambito
+    try:
+        url = "https://www.ambito.com/contenidos/dolar-ccl.html"
+        r = requests.get(url, timeout=10)
+        soup = BeautifulSoup(r.text, "html.parser")
+        valor = soup.select_one(".value").text
+        valor = float(valor.replace(".", "").replace(",", "."))
+        print("CCL desde ambito")
+        return valor
+    except:
+        fuentes.append("ambito")
 
-except Exception as e:
-    print("Error CCL:", e)
-    datos["CCL"] = None
+    # Fuente 3 - cripto USDT como aproximación
+    try:
+        precio = yf.Ticker("USDT-ARS").history(period="1d")["Close"].iloc[-1]
+        print("CCL aproximado desde USDT")
+        return float(precio)
+    except:
+        fuentes.append("usdt")
 
-# Fecha
-from datetime import datetime
-from pytz import timezone
+    print("Todas las fuentes fallaron:", fuentes)
+    return None
 
-# Hora local de Argentina
+# Obtener CCL
+datos["CCL"] = obtener_ccl()
+
+# -----------------------------
+# Fecha correcta
+# -----------------------------
 ahora = datetime.now(timezone('America/Argentina/Buenos_Aires'))
-
-# Generar fecha correcta: YYYY-MM-DD HH:MM:SS
 datos["fecha"] = ahora.strftime("%Y-%m-%d %H:%M:%S")
 
-# Conexión a PostgreSQL
+# -----------------------------
+# Conexión DB
 # -----------------------------
 conn = psycopg2.connect(
     host=os.getenv("PG_HOST"),
@@ -110,11 +131,10 @@ conn = psycopg2.connect(
     password=os.getenv("PG_PASSWORD"),
     port=os.getenv("PG_PORT", "5432")
 )
-
 cursor = conn.cursor()
 
 # -----------------------------
-# Crear tabla
+# Tabla
 # -----------------------------
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS datos_mercado (
@@ -124,7 +144,6 @@ CREATE TABLE IF NOT EXISTS datos_mercado (
     ORO NUMERIC,
     PETROLEO NUMERIC,
     BONO_10Y NUMERIC,
-    CCL NUMERIC,
 
     USDARS_open NUMERIC,
     USDARS_high NUMERIC,
@@ -138,19 +157,20 @@ CREATE TABLE IF NOT EXISTS datos_mercado (
     USDARS_SMA20 NUMERIC,
     USDARS_RSI14 NUMERIC,
     USDARS_MACD NUMERIC,
-    USDARS_MACD_signal NUMERIC
+    USDARS_MACD_signal NUMERIC,
+
+    CCL NUMERIC
 )
 """)
 
 # -----------------------------
-# Insertar datos
+# Insert
 # -----------------------------
 cursor.execute("""
-INSERT INTO datos_mercado (
-    fecha, SP500, VIX, ORO, PETROLEO, BONO_10Y, CCL,
-    USDARS_open, USDARS_high, USDARS_low, USDARS_close, USDARS_adj, USDARS_volume,
-    USDARS_SMA5, USDARS_SMA10, USDARS_SMA20, USDARS_RSI14, USDARS_MACD, USDARS_MACD_signal
-)
+INSERT INTO datos_mercado (fecha, SP500, VIX, ORO, PETROLEO, BONO_10Y,
+                           USDARS_open, USDARS_high, USDARS_low, USDARS_close, USDARS_adj, USDARS_volume,
+                           USDARS_SMA5, USDARS_SMA10, USDARS_SMA20, USDARS_RSI14, USDARS_MACD, USDARS_MACD_signal,
+                           CCL)
 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 ON CONFLICT (fecha)
 DO UPDATE SET
@@ -159,43 +179,24 @@ DO UPDATE SET
     ORO = EXCLUDED.ORO,
     PETROLEO = EXCLUDED.PETROLEO,
     BONO_10Y = EXCLUDED.BONO_10Y,
-    CCL = EXCLUDED.CCL,
-
     USDARS_open = EXCLUDED.USDARS_open,
     USDARS_high = EXCLUDED.USDARS_high,
     USDARS_low = EXCLUDED.USDARS_low,
     USDARS_close = EXCLUDED.USDARS_close,
     USDARS_adj = EXCLUDED.USDARS_adj,
     USDARS_volume = EXCLUDED.USDARS_volume,
-
     USDARS_SMA5 = EXCLUDED.USDARS_SMA5,
     USDARS_SMA10 = EXCLUDED.USDARS_SMA10,
     USDARS_SMA20 = EXCLUDED.USDARS_SMA20,
     USDARS_RSI14 = EXCLUDED.USDARS_RSI14,
     USDARS_MACD = EXCLUDED.USDARS_MACD,
-    USDARS_MACD_signal = EXCLUDED.USDARS_MACD_signal
+    USDARS_MACD_signal = EXCLUDED.USDARS_MACD_signal,
+    CCL = EXCLUDED.CCL
 """, (
-    datos["fecha"],
-    datos.get("SP500"),
-    datos.get("VIX"),
-    datos.get("ORO"),
-    datos.get("PETROLEO"),
-    datos.get("BONO_10Y"),
-    datos.get("CCL"),
-
-    datos.get("USDARS_open"),
-    datos.get("USDARS_high"),
-    datos.get("USDARS_low"),
-    datos.get("USDARS_close"),
-    datos.get("USDARS_adj"),
-    datos.get("USDARS_volume"),
-
-    datos.get("USDARS_SMA5"),
-    datos.get("USDARS_SMA10"),
-    datos.get("USDARS_SMA20"),
-    datos.get("USDARS_RSI14"),
-    datos.get("USDARS_MACD"),
-    datos.get("USDARS_MACD_signal")
+    datos["fecha"], datos["SP500"], datos["VIX"], datos["ORO"], datos["PETROLEO"], datos["BONO_10Y"],
+    datos["USDARS_open"], datos["USDARS_high"], datos["USDARS_low"], datos["USDARS_close"], datos["USDARS_adj"], datos["USDARS_volume"],
+    datos["USDARS_SMA5"], datos["USDARS_SMA10"], datos["USDARS_SMA20"], datos["USDARS_RSI14"], datos["USDARS_MACD"], datos["USDARS_MACD_signal"],
+    datos["CCL"]
 ))
 
 conn.commit()
