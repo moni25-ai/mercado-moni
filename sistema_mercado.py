@@ -4,7 +4,6 @@ from datetime import datetime
 from pytz import timezone
 import os
 import requests
-from bs4 import BeautifulSoup
 
 # -----------------------------
 # Activos
@@ -72,52 +71,15 @@ for nombre, ticker in activos.items():
         datos[nombre] = None
 
 # -----------------------------
-# FUNCION ROBUSTA CCL (fallback)
-# -----------------------------
-def obtener_ccl():
-    fuentes = []
-
-    # Fuente 1 - dolarito
-    try:
-        url = "https://www.dolarito.ar/cotizacion/dolar/ccl"
-        r = requests.get(url, timeout=10)
-        soup = BeautifulSoup(r.text, "html.parser")
-        valor = soup.select_one("div.d-e-k div span").text
-        valor = float(valor.replace(".", "").replace(",", "."))
-        print("CCL desde dolarito")
-        return valor
-    except:
-        fuentes.append("dolarito")
-
-    # Fuente 2 - ambito
-    try:
-        url = "https://www.ambito.com/contenidos/dolar-ccl.html"
-        r = requests.get(url, timeout=10)
-        soup = BeautifulSoup(r.text, "html.parser")
-        valor = soup.select_one(".value").text
-        valor = float(valor.replace(".", "").replace(",", "."))
-        print("CCL desde ambito")
-        return valor
-    except:
-        fuentes.append("ambito")
-
-    # Fuente 3 - cripto USDT como aproximación
-    try:
-        precio = yf.Ticker("USDT-ARS").history(period="1d")["Close"].iloc[-1]
-        print("CCL aproximado desde USDT")
-        return float(precio)
-    except:
-        fuentes.append("usdt")
-
-    print("Todas las fuentes fallaron:", fuentes)
-    return None
-
-# CCL robusto usando USDT (proxy)
+# CCL ROBUSTO (BINANCE - NO FALLA)
 # -----------------------------
 try:
-    precio = yf.Ticker("USDT-ARS").history(period="1d")["Close"].iloc[-1]
-    datos["CCL"] = float(precio)
-    print("CCL desde USDT")
+    url = "https://api.binance.com/api/v3/ticker/price?symbol=USDTARS"
+    response = requests.get(url, timeout=10)
+    data = response.json()
+
+    datos["CCL"] = float(data["price"])
+    print("CCL desde Binance")
 except Exception as e:
     print("Error obteniendo CCL:", e)
     datos["CCL"] = None
