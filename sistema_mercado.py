@@ -71,15 +71,15 @@ for nombre, ticker in activos.items():
         datos[nombre] = None
 
 # -----------------------------
-# CCL ROBUSTO (BINANCE - NO FALLA)
+# CCL REAL (API ARGENTINA)
 # -----------------------------
 try:
-    url = "https://api.binance.com/api/v3/ticker/price?symbol=USDTARS"
+    url = "https://dolarapi.com/v1/dolares/contadoconliqui"
     response = requests.get(url, timeout=10)
     data = response.json()
 
-    datos["CCL"] = float(data["price"])
-    print("CCL desde Binance")
+    datos["CCL"] = float(data["venta"])
+    print("CCL desde DolarAPI")
 except Exception as e:
     print("Error obteniendo CCL:", e)
     datos["CCL"] = None
