@@ -32,4 +32,4 @@ jobs:
           PG_PORT: ${{ secrets.PG_PORT }}    
         
           
-        run: python sistema_mercado.py
+        run: python scripts/sistema_mercado.py
